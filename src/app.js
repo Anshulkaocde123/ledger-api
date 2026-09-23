@@ -9,8 +9,17 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const path = require('path');
+
 // Base API Route
 app.use('/api/v1', routes);
+
+// Serve Interactive Web Workbench & Inspector
+const publicDir = path.join(__dirname, '../public');
+app.use(express.static(publicDir));
+app.get(['/', '/console'], (req, res) => {
+  res.sendFile(path.join(publicDir, 'index.html'));
+});
 
 // Catch 404
 app.use((req, res, next) => {

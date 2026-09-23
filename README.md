@@ -104,6 +104,20 @@ This service follows a strict **Layered Architecture (Separation of Concerns)**:
    docker compose up --build
    ```
 
+6. Interactive Testing Tools (Web & Terminal UI):
+   - **Web Workbench & Inspector (Burp / DevTools Style UI)**:
+     Open your browser to `http://localhost:3000/` (or your deployed cloud URL). Includes:
+     - ⚡ **1-Click Simulation**: Automates signup, login, double-entry funding, transfer, and idempotency replay.
+     - 📡 **Burp-Style Request/Response Inspector**: Custom methods, paths, headers, JSON editor, status badges, latency timers, and header inspection.
+     - 🔍 **Financial Internals Callouts**: Real-time visual badges for `X-Cache-Lookup: HIT/MISS`, `Idempotent-Replay: true`, and `Retry-After: <seconds>`.
+   - **Interactive Terminal Studio (CLI)**:
+     Run directly from your terminal:
+     ```bash
+     npm run cli
+     # Or against a deployed remote URL:
+     API_URL=https://ledger-api-xxxx.onrender.com npm run cli
+     ```
+
 ---
 
 ## Deployment

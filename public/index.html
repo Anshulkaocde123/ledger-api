@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ledger API | Interactive Studio & Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Bar -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo-mark">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <rect x="2" y="5" width="20" height="14" rx="2" />
+            <line x1="2" y1="10" x2="22" y2="10" />
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">ledger-api</h1>
+          <span class="brand-sub">Workbench & Inspector</span>
+        </div>
+      </div>
+
+      <div class="topbar-controls">
+        <div class="target-env">
+          <label for="baseUrlInput" class="env-label">TARGET API</label>
+          <input type="text" id="baseUrlInput" class="env-input" value="" placeholder="http://localhost:3000">
+        </div>
+        <div id="healthBadge" class="health-pill checking">
+          <span class="pulse-dot"></span>
+          <span id="healthText">Connecting...</span>
+        </div>
+        <div class="auth-pill-container">
+          <span id="authStatusPill" class="auth-pill unauthenticated">No Token</span>
+          <button id="clearTokenBtn" class="btn-icon" title="Clear saved token">✕</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Container -->
+    <main class="workbench-body">
+      <!-- Left Panel: Guided Workflows & Presets -->
+      <aside class="sidebar">
+        <!-- Guided 1-Click Simulation -->
+        <section class="sidebar-section highlight-box">
+          <div class="section-header">
+            <span class="badge-accent">DEMO</span>
+            <h3>1-Click Full Simulation</h3>
+          </div>
+          <p class="section-desc">Executes Signup → Login → Create Accounts → Double-Entry Funding → Transfer → Idempotency Replay in one flow.</p>
+          <button id="runFullDemoBtn" class="btn btn-primary btn-block">
+            <span class="btn-icon-text">⚡</span> Run End-to-End Demo
+          </button>
+        </section>
+
+        <!-- Category Accordions / Action Cards -->
+        <section class="sidebar-section">
+          <h3>Quick Scenario Actions</h3>
+
+          <!-- Authentication -->
+          <div class="card-action">
+            <div class="card-action-header">
+              <span class="card-icon">🔐</span>
+              <strong>Authentication</strong>
+            </div>
+            <div class="btn-group-grid">
+              <button class="btn btn-sm btn-secondary preset-btn" data-preset="signup">Sign Up</button>
+              <button class="btn btn-sm btn-secondary preset-btn" data-preset="login">Log In</button>
+              <button class="btn btn-sm btn-secondary preset-btn" data-preset="refresh">Refresh Token</button>
+            </div>
+          </div>
+
+          <!-- Accounts & Balances -->
+          <div class="card-action">
+            <div class="card-action-header">
+              <span class="card-icon">💳</span>
+              <strong>Accounts & Balances</strong>
+            </div>
+            <div class="btn-group-grid">
+              <button class="btn btn-sm btn-secondary preset-btn" data-preset="create-account">Create Account</button>
+              <button class="btn btn-sm btn-secondary preset-btn" data-preset="list-accounts">List Accounts</button>
+              <button class="btn btn-sm btn-secondary preset-btn" data-preset="check-balance">Check Balance</button>
+            </div>
+          </div>
+
+          <!-- Transfers & Idempotency -->
+          <div class="card-action">
+            <div class="card-action-header">
+              <span class="card-icon">💸</span>
+              <strong>Transfers & Idempotency</strong>
+            </div>
+            <div class="btn-group-grid">
+              <button class="btn btn-sm btn-secondary preset-btn" data-preset="fund-account">Deposit (Double-Entry)</button>
+              <button class="btn btn-sm btn-secondary preset-btn" data-preset="transfer">Transfer Funds</button>
+              <button id="replayLastTransferBtn" class="btn btn-sm btn-outline-warning">Replay Transfer (Same Key)</button>
+            </div>
+          </div>
+
+          <!-- Rate Limiter Stress Test -->
+          <div class="card-action">
+            <div class="card-action-header">
+              <span class="card-icon">🛡️</span>
+              <strong>Token Bucket Rate Limiter</strong>
+            </div>
+            <p class="card-micro-desc">Fires 6 rapid requests to test HTTP 429 burst blocking & Retry-After header.</p>
+            <button id="stressTestRateLimitBtn" class="btn btn-sm btn-outline-danger btn-block">
+              Fire Rate Limit Burst (6 reqs)
+            </button>
+          </div>
+        </section>
+
+        <!-- State Inspector -->
+        <section class="sidebar-section state-box">
+          <h3>Active Session State</h3>
+          <div class="state-row">
+            <span class="state-label">User:</span>
+            <span id="stateUser" class="state-val">None</span>
+          </div>
+          <div class="state-row">
+            <span class="state-label">Source Acc:</span>
+            <span id="stateSourceAcc" class="state-val mono">None</span>
+          </div>
+          <div class="state-row">
+            <span class="state-label">Dest Acc:</span>
+            <span id="stateDestAcc" class="state-val mono">None</span>
+          </div>
+          <div class="state-row">
+            <span class="state-label">Last Idem Key:</span>
+            <span id="stateIdemKey" class="state-val mono">None</span>
+          </div>
+        </section>
+      </aside>
+
+      <!-- Center & Right Panel: Burp-Style Request & Response Inspector -->
+      <section class="inspector-workspace">
+        <!-- URL & Send Bar -->
+        <div class="request-url-bar">
+          <select id="reqMethod" class="method-selector">
+            <option value="GET">GET</option>
+            <option value="POST">POST</option>
+            <option value="PUT">PUT</option>
+            <option value="DELETE">DELETE</option>
+          </select>
+          <input type="text" id="reqPath" class="endpoint-input" value="/api/v1/health" placeholder="/api/v1/...">
+          <button id="sendRequestBtn" class="btn btn-primary send-btn">
+            <span>Send</span>
+            <span class="shortcut-pill">⌘⏎</span>
+          </button>
+        </div>
+
+        <!-- Split Pane: Request Details on Left, Response Details on Right -->
+        <div class="split-pane">
+          <!-- Request Pane -->
+          <div class="pane pane-request">
+            <div class="pane-header">
+              <div class="tab-list">
+                <button class="tab-btn active" data-tab="req-headers">Headers</button>
+                <button class="tab-btn" data-tab="req-body">JSON Body</button>
+              </div>
+              <div class="pane-actions">
+                <button id="formatJsonBtn" class="btn-text">Format JSON</button>
+              </div>
+            </div>
+
+            <!-- Tab: Headers -->
+            <div id="tab-req-headers" class="tab-content active">
+              <div class="headers-editor">
+                <div class="header-field">
+                  <label>Authorization</label>
+                  <input type="text" id="headerAuth" placeholder="Bearer <jwt-token> (Auto-filled on Login)">
+                </div>
+                <div class="header-field">
+                  <label>Idempotency-Key</label>
+                  <div class="input-with-button">
+                    <input type="text" id="headerIdempotency" placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000">
+                    <button id="generateUuidBtn" class="btn btn-sm btn-secondary" title="Generate New UUID">UUID</button>
+                  </div>
+                </div>
+                <div class="header-field">
+                  <label>Content-Type</label>
+                  <input type="text" id="headerContentType" value="application/json">
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab: Body -->
+            <div id="tab-req-body" class="tab-content">
+              <textarea id="reqBody" class="code-editor" placeholder="{\n  &quot;key&quot;: &quot;value&quot;\n}" spellcheck="false"></textarea>
+            </div>
+          </div>
+
+          <!-- Response Pane (Burp Suite Style) -->
+          <div class="pane pane-response">
+            <div class="pane-header">
+              <div class="response-status-group">
+                <span id="resStatusBadge" class="status-badge status-idle">Ready</span>
+                <span id="resTimeBadge" class="metric-badge">0 ms</span>
+              </div>
+              <div class="tab-list">
+                <button class="tab-btn active" data-tab="res-body">Formatted</button>
+                <button class="tab-btn" data-tab="res-headers">Headers</button>
+              </div>
+            </div>
+
+            <!-- Special Financial Internals Callout Row -->
+            <div id="financialInternalsCallout" class="financial-callout-row hidden">
+              <div id="cacheBadge" class="callout-pill hidden">
+                <span class="callout-tag">Redis Cache</span>
+                <strong id="cacheStatusVal">HIT</strong>
+              </div>
+              <div id="idempotencyBadge" class="callout-pill hidden">
+                <span class="callout-tag">Idempotency</span>
+                <strong id="idempotencyStatusVal">REPLAY DETECTED</strong>
+              </div>
+              <div id="rateLimitBadge" class="callout-pill hidden">
+                <span class="callout-tag">Rate Limit</span>
+                <strong id="rateLimitVal">BLOCKED</strong>
+              </div>
+            </div>
+
+            <!-- Tab: Response Body -->
+            <div id="tab-res-body" class="tab-content active">
+              <pre id="resBodyViewer" class="code-viewer"><code>{
+  "message": "Click 'Send' or pick a scenario on the left to run an API request."
+}</code></pre>
+            </div>
+
+            <!-- Tab: Response Headers Table -->
+            <div id="tab-res-headers" class="tab-content">
+              <table class="headers-table">
+                <thead>
+                  <tr>
+                    <th>Header</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody id="resHeadersTbody">
+                  <tr>
+                    <td colspan="2" class="text-muted">No response received yet</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Activity Log Console -->
+        <div class="activity-log-pane">
+          <div class="log-header">
+            <h4>Live Console & Execution Trace</h4>
+            <button id="clearLogBtn" class="btn-text">Clear</button>
+          </div>
+          <div id="activityLog" class="log-stream">
+            <div class="log-entry log-info">[INFO] Workbench initialized. Ready to execute requests.</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

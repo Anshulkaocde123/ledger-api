@@ -20,9 +20,10 @@ COPY package.json package-lock.json ./
 # Install all dependencies (including devDependencies if needed for build/lint)
 RUN npm ci
 
-# Copy application source code and migrations
+# Copy application source code, migrations, and public workbench assets
 COPY src/ ./src/
 COPY migrations/ ./migrations/
+COPY public/ ./public/
 
 # Prune non-production dependencies to leave only production node_modules
 RUN npm prune --omit=dev && npm cache clean --force
@@ -46,6 +47,7 @@ COPY --from=builder --chown=node:node /app/package.json ./package.json
 COPY --from=builder --chown=node:node /app/node_modules ./node_modules
 COPY --from=builder --chown=node:node /app/src ./src
 COPY --from=builder --chown=node:node /app/migrations ./migrations
+COPY --from=builder --chown=node:node /app/public ./public
 
 # Security: Run container as non-root unprivileged 'node' user
 USER node
