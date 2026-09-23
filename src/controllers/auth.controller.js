@@ -36,6 +36,16 @@ class AuthController {
       return next(err);
     }
   }
+
+  async logout(req, res, next) {
+    try {
+      const refreshToken = req.body.refreshToken || req.headers['x-refresh-token'];
+      await authService.logout(refreshToken);
+      return sendSuccess(res, null, 200, 'Logged out successfully');
+    } catch (err) {
+      return next(err);
+    }
+  }
 }
 
 module.exports = new AuthController();

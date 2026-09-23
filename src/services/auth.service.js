@@ -186,6 +186,20 @@ class AuthService {
       refreshToken: newRefreshToken,
     };
   }
+
+  /**
+   * Invalidate refresh token on user logout
+   */
+  async logout(rawRefreshToken) {
+    if (!rawRefreshToken) {
+      return;
+    }
+    const tokenHash = this.hashToken(rawRefreshToken);
+    const tokenRecord = await refreshTokenRepository.findByTokenHash(tokenHash);
+    if (tokenRecord && !tokenRecord.revoked_at) {
+      await refreshTokenRepository.revoke(tokenRecord.id);
+    }
+  }
 }
 
 module.exports = new AuthService();

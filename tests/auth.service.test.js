@@ -176,4 +176,27 @@ describe('AuthService Tests', () => {
       expect(refreshTokenRepository.revokeAllForUser).toHaveBeenCalledWith(user.id);
     });
   });
+
+  describe('logout', () => {
+    it('should revoke refresh token in database on logout', async () => {
+      const rawRefreshToken = 'sample_refresh_token_to_revoke';
+      const tokenHash = authService.hashToken(rawRefreshToken);
+
+      refreshTokenRepository.findByTokenHash.mockResolvedValue({
+        id: 'token-db-1',
+        token_hash: tokenHash,
+        revoked_at: null,
+      });
+      refreshTokenRepository.revoke.mockResolvedValue({});
+
+      await authService.logout(rawRefreshToken);
+
+      expect(refreshTokenRepository.revoke).toHaveBeenCalledWith('token-db-1');
+    });
+
+    it('should handle missing or empty refresh token gracefully', async () => {
+      await authService.logout(null);
+      expect(refreshTokenRepository.revoke).not.toHaveBeenCalled();
+    });
+  });
 });

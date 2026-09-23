@@ -16,6 +16,7 @@ router.post('/auth/signup', authController.signup);
 router.post('/auth/register', authController.register); // alias
 router.post('/auth/login', authController.login);
 router.post('/auth/refresh', authController.refresh);
+router.post('/auth/logout', authController.logout);
 
 // Account Routes (Protected - Authenticated Users)
 router.post('/accounts', authenticate, accountController.createAccount);
