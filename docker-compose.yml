@@ -1,0 +1,127 @@
+services:
+  # ---------------------------------------------------------------------------
+  # 1. PostgreSQL Database Service with Persisted Data Volume
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: ledger-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ledger_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ledger_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ledger-net
+
+  # ---------------------------------------------------------------------------
+  # 2. Redis In-Memory Store (Cache, Rate Limiting, BullMQ)
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: ledger-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ledger-net
+
+  # ---------------------------------------------------------------------------
+  # 3. Database Migration Runner (Runs automatically before app boots)
+  # ---------------------------------------------------------------------------
+  migration:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ledger-migration
+    command: ["node", "src/database/migrate.js"]
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ledger_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ledger-net
+
+  # ---------------------------------------------------------------------------
+  # 4. Main Application Server (Express API)
+  # ---------------------------------------------------------------------------
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ledger-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ledger_db
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-production_jwt_access_secret_change_in_env}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-production_jwt_refresh_secret_change_in_env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    networks:
+      - ledger-net
+
+  # ---------------------------------------------------------------------------
+  # 5. Background Audit Worker Process (BullMQ Queue Consumer)
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ledger-worker
+    command: ["node", "src/worker.js"]
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ledger_db
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migration:
+        condition: service_completed_successfully
+    networks:
+      - ledger-net
+
+# -----------------------------------------------------------------------------
+# Persisted Data Volumes & Isolated Network
+# -----------------------------------------------------------------------------
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ledger-net:
+    driver: bridge
