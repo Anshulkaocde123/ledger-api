@@ -26,6 +26,7 @@ router.post('/auth/logout', authController.logout);
 router.post('/accounts', authenticate, accountController.createAccount);
 router.get('/accounts', authenticate, accountController.getUserAccounts);
 router.get('/accounts/:id', authenticate, accountController.getAccountById);
+router.get('/accounts/:id/balance', authenticate, accountController.getAccountBalance);
 router.get('/accounts/:accountId/entries', authenticate, transactionController.getAccountEntries);
 
 // Transaction & Payment Routes (Protected)

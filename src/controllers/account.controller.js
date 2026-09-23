@@ -1,4 +1,5 @@
 const accountRepository = require('../repositories/account.repository');
+const accountService = require('../services/account.service');
 const ApiError = require('../utils/apiError');
 const { sendSuccess } = require('../utils/response');
 
@@ -30,6 +31,21 @@ class AccountController {
       }
 
       return sendSuccess(res, account, 200);
+    } catch (err) {
+      return next(err);
+    }
+  }
+
+  async getAccountBalance(req, res, next) {
+    try {
+      const { id } = req.params;
+      const requestingUserId = req.user?.userId;
+      const balanceData = await accountService.getAccountBalance(id, requestingUserId);
+
+      // Indicate cache status in HTTP response headers
+      res.setHeader('X-Cache-Lookup', balanceData.cached ? 'HIT' : 'MISS');
+
+      return sendSuccess(res, balanceData, 200);
     } catch (err) {
       return next(err);
     }

@@ -2,6 +2,7 @@ const db = require('../config/db');
 const accountRepository = require('../repositories/account.repository');
 const transactionRepository = require('../repositories/transaction.repository');
 const auditLogRepository = require('../repositories/auditLog.repository');
+const accountService = require('./account.service');
 const ApiError = require('../utils/apiError');
 const logger = require('../utils/logger');
 
@@ -137,7 +138,10 @@ class PaymentService {
       // 7. COMMIT database transaction
       await client.query('COMMIT');
 
-      // 8. Enqueue asynchronous, non-blocking audit log write
+      // 8. Explicitly invalidate Redis balance cache for both accounts (do not wait for TTL)
+      await accountService.invalidateBalanceCache(sourceAccountId, destinationAccountId);
+
+      // 9. Enqueue asynchronous, non-blocking audit log write
       setImmediate(async () => {
         try {
           await auditLogRepository.create({
