@@ -3,6 +3,10 @@ const authController = require('../controllers/auth.controller');
 const accountController = require('../controllers/account.controller');
 const transactionController = require('../controllers/transaction.controller');
 const { authenticate, authorize } = require('../middleware/auth.middleware');
+const {
+  loginRateLimiter,
+  transferRateLimiter,
+} = require('../middleware/rateLimiter.middleware');
 
 const router = express.Router();
 
@@ -14,7 +18,7 @@ router.get('/health', (req, res) => {
 // Authentication Routes
 router.post('/auth/signup', authController.signup);
 router.post('/auth/register', authController.register); // alias
-router.post('/auth/login', authController.login);
+router.post('/auth/login', loginRateLimiter, authController.login);
 router.post('/auth/refresh', authController.refresh);
 router.post('/auth/logout', authController.logout);
 
@@ -25,8 +29,8 @@ router.get('/accounts/:id', authenticate, accountController.getAccountById);
 router.get('/accounts/:accountId/entries', authenticate, transactionController.getAccountEntries);
 
 // Transaction & Payment Routes (Protected)
-router.post('/transfers', authenticate, transactionController.transfer);
-router.post('/payments/transfer', authenticate, transactionController.transfer); // alias
+router.post('/transfers', authenticate, transferRateLimiter, transactionController.transfer);
+router.post('/payments/transfer', authenticate, transferRateLimiter, transactionController.transfer); // alias
 router.post('/transactions', authenticate, transactionController.recordTransaction);
 router.get('/transactions/:id', authenticate, transactionController.getTransactionById);
 
