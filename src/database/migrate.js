@@ -5,9 +5,18 @@ const config = require('../config/env');
 const logger = require('../utils/logger');
 
 const runMigrations = async () => {
-  const pool = new Pool({
+  const poolConfig = {
     connectionString: config.databaseUrl,
-  });
+  };
+
+  if (
+    process.env.DATABASE_SSL === 'true' ||
+    (config.databaseUrl && (config.databaseUrl.includes('sslmode=require') || config.databaseUrl.includes('render.com') || config.databaseUrl.includes('railway.app')))
+  ) {
+    poolConfig.ssl = { rejectUnauthorized: false };
+  }
+
+  const pool = new Pool(poolConfig);
 
   const client = await pool.connect();
 

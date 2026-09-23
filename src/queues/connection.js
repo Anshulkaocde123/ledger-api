@@ -6,10 +6,13 @@ const config = require('../config/env');
 const getRedisConnectionOptions = () => {
   try {
     const url = new URL(config.redisUrl);
+    const isTls = url.protocol === 'rediss:' || process.env.REDIS_TLS === 'true';
     return {
       host: url.hostname || 'localhost',
       port: parseInt(url.port, 10) || 6379,
       password: url.password || undefined,
+      username: url.username || undefined,
+      tls: isTls ? { rejectUnauthorized: false } : undefined,
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
       retryStrategy: (times) => {

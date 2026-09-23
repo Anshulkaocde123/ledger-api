@@ -98,6 +98,37 @@ This service follows a strict **Layered Architecture (Separation of Concerns)**:
      npm test
      ```
 
+5. Run with Docker Compose (Local Stack):
+   ```bash
+   # Boots PostgreSQL, Redis, runs DB migrations, and starts the API + BullMQ worker
+   docker compose up --build
+   ```
+
+---
+
+## Deployment
+
+### Deploy to Render (Infrastructure as Code)
+
+This repository includes a turnkey [render.yaml](render.yaml) Blueprint that provisions a complete production stack on Render with a single click.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy)
+
+#### Resources Provisioned by `render.yaml`:
+1. **Managed PostgreSQL 16 (`ledger-postgres`)**: Persistent database instance.
+2. **Managed Redis (`ledger-redis`)**: High-performance in-memory cache, rate limiter, and BullMQ queue broker with `noeviction` policy.
+3. **Web API Service (`ledger-api`)**: Multi-stage Dockerized Express application. Automatically runs `node src/database/migrate.js` during the `preDeployCommand` phase before routing live traffic.
+4. **Audit Worker (`ledger-audit-worker`)**: Background worker executing `node src/worker.js` to process asynchronous audit logs from BullMQ with exponential backoff and dead-letter queues.
+
+#### Step-by-Step Deployment Guide:
+1. **Fork or Push** this repository to your GitHub account.
+2. Navigate to the [Render Dashboard](https://dashboard.render.com/) and click **New +** $\rightarrow$ **Blueprint**.
+3. Connect your forked repository. Render will automatically detect and parse `render.yaml`.
+4. Render automatically configures:
+   - Dynamic internal connection strings for `DATABASE_URL` and `REDIS_URL`.
+   - Cryptographically random 256-bit secrets for `JWT_SECRET` and `JWT_REFRESH_SECRET`.
+5. Click **Apply**. Render builds the Docker image, applies SQL migrations, and brings all services online.
+
 ---
 
 ## API Endpoints
