@@ -7,41 +7,56 @@ class TransactionRepository {
     return result.rows[0] || null;
   }
 
-  async findByReference(reference, client = db) {
-    const query = 'SELECT * FROM transactions WHERE reference = $1';
-    const result = await client.query(query, [reference]);
+  async findByIdempotencyKey(idempotencyKey, client = db) {
+    const query = 'SELECT * FROM transactions WHERE idempotency_key = $1';
+    const result = await client.query(query, [idempotencyKey]);
     return result.rows[0] || null;
   }
 
-  async createTransaction({ reference, description, status = 'POSTED' }, client) {
+  // Alias for backward compatibility
+  async findByReference(reference, client = db) {
+    return this.findByIdempotencyKey(reference, client);
+  }
+
+  async createTransaction({ idempotencyKey, reference, description, status = 'posted', initiatedBy = null }, client) {
+    const key = idempotencyKey || reference;
     const query = `
-      INSERT INTO transactions (reference, description, status)
-      VALUES ($1, $2, $3)
+      INSERT INTO transactions (idempotency_key, description, status, initiated_by)
+      VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    const result = await client.query(query, [reference, description, status]);
+    const result = await client.query(query, [key, description, status, initiatedBy]);
     return result.rows[0];
   }
 
   async createLedgerEntries(entries, client) {
-    // Inserts multiple ledger entries atomically
     const results = [];
     for (const entry of entries) {
+      const entryType = (entry.type || entry.entryType).toLowerCase();
       const query = `
-        INSERT INTO ledger_entries (transaction_id, account_id, type, amount, currency)
-        VALUES ($1, $2, $3, $4, $5)
+        INSERT INTO ledger_entries (transaction_id, account_id, entry_type, amount)
+        VALUES ($1, $2, $3, $4)
         RETURNING *
       `;
       const res = await client.query(query, [
         entry.transactionId,
         entry.accountId,
-        entry.type,
+        entryType,
         entry.amount,
-        entry.currency,
       ]);
       results.push(res.rows[0]);
     }
     return results;
+  }
+
+  async getEntriesByTransactionId(transactionId, client = db) {
+    const query = `
+      SELECT * FROM ledger_entries
+      WHERE transaction_id = $1
+      ORDER BY created_at ASC
+    `;
+    const result = await client.query(query, [transactionId]);
+    return result.rows;
   }
 
   async getEntriesByAccountId(accountId, client = db) {
