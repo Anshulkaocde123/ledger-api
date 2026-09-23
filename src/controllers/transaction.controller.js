@@ -22,21 +22,34 @@ class TransactionController {
 
   async transfer(req, res, next) {
     try {
-      const idempotencyKey = req.headers['x-idempotency-key'] || req.body.idempotencyKey;
+      const idempotencyKey =
+        req.headers['idempotency-key'] ||
+        req.headers['x-idempotency-key'] ||
+        req.body.idempotencyKey;
+
       if (!idempotencyKey) {
-        throw ApiError.badRequest('Idempotency key required in X-Idempotency-Key header or body');
+        throw ApiError.badRequest('Idempotency-Key header is required');
       }
 
-      const { sourceAccountId, destinationAccountId, amount, currency } = req.body;
+      const { sourceAccountId, destinationAccountId, amount, currency, description } = req.body;
+      const initiatedBy = req.user?.userId || null;
+
       const result = await paymentService.transferFunds({
         idempotencyKey,
         sourceAccountId,
         destinationAccountId,
         amount,
         currency,
+        description,
+        initiatedBy,
       });
 
-      return sendSuccess(res, result, 200, 'Funds transferred successfully');
+      if (result.isDuplicate) {
+        res.setHeader('Idempotent-Replay', 'true');
+        return sendSuccess(res, result, 200, 'Original transfer result returned (idempotent replay)');
+      }
+
+      return sendSuccess(res, result, 201, 'Funds transferred successfully');
     } catch (err) {
       return next(err);
     }

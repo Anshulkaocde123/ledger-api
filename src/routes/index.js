@@ -25,8 +25,9 @@ router.get('/accounts/:id', authenticate, accountController.getAccountById);
 router.get('/accounts/:accountId/entries', authenticate, transactionController.getAccountEntries);
 
 // Transaction & Payment Routes (Protected)
+router.post('/transfers', authenticate, transactionController.transfer);
+router.post('/payments/transfer', authenticate, transactionController.transfer); // alias
 router.post('/transactions', authenticate, transactionController.recordTransaction);
-router.post('/payments/transfer', authenticate, transactionController.transfer);
 router.get('/transactions/:id', authenticate, transactionController.getTransactionById);
 
 // Example Administrative Route (Demonstrating authorize middleware)
