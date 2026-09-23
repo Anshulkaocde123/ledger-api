@@ -13,7 +13,7 @@ class UserRepository {
     return result.rows[0] || null;
   }
 
-  async create({ email, passwordHash, fullName, role = 'user' }) {
+  async create({ email, passwordHash, fullName, role = 'customer' }) {
     const query = `
       INSERT INTO users (email, password_hash, full_name, role)
       VALUES ($1, $2, $3, $4)
