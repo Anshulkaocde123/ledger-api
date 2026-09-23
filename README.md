@@ -1,5 +1,7 @@
 # ledger-api
 
+[![CI Pipeline](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/ci.yml/badge.svg)](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/ci.yml)
+
 A resilient, audit-compliant banking-style ledger and payments backend built with Node.js, Express, and PostgreSQL.
 
 ---
