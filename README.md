@@ -21,7 +21,30 @@ Key capabilities planned:
 
 ## Architecture
 
-This service follows a strict **Layered Architecture (Separation of Concerns)**:
+### System Topology
+
+```mermaid
+flowchart LR
+    Client["Client / Workbench / Postman"] --> LB["Load Balancer"]
+    LB --> App1["App Server 1"]
+    LB --> App2["App Server 2"]
+
+    App1 --> Redis[("Redis\n(Rate Limits + Balance Cache)")]
+    App2 --> Redis
+
+    App1 --> BullMQ["BullMQ Queue\n(audit-logs)"]
+    App2 --> BullMQ
+
+    BullMQ --> Worker["Audit Log Worker\n(Dead-Letter Queue)"]
+
+    App1 --> PG_Primary[("Postgres Primary\n(ACID & Row Locks)")]
+    App2 --> PG_Primary
+    Worker --> PG_Primary
+
+    PG_Primary -. Replication .-> PG_Replica[("Postgres Read Replica")]
+```
+
+### Layered Architecture (Separation of Concerns)
 
 ```
 [ HTTP Client / External Services ]
@@ -172,10 +195,29 @@ This repository includes a turnkey [render.yaml](render.yaml) Blueprint that pro
 
 ---
 
-## Design Decisions
+## Design Decisions & ADRs
 
-1. **Layered Architecture over Route Handlers**: Decouples transport protocol (HTTP/REST) from domain business logic (accounting rules) and storage mechanisms (PostgreSQL), allowing comprehensive unit testing without mocking HTTP requests.
-2. **Double-Entry Bookkeeping**: Money is never created or destroyed without counter-entries. Every transaction contains balanced debit and credit entries (`sum(debits) - sum(credits) = 0`).
-3. **Immutability of Ledger Entries**: Financial records are append-only. Modifying or deleting ledger entries is strictly prohibited; corrections are issued via compensating entries (reversals).
-4. **Strict Concurrency & Isolation**: Financial transactions execute inside PostgreSQL database transactions (`BEGIN ... COMMIT`) utilizing row-level locking (`SELECT ... FOR UPDATE`) to prevent double-spending and balance drift.
-5. **Idempotency with Redis**: High-concurrency payment APIs utilize idempotency keys stored in Redis to eliminate duplicate charges in the event of client retries or network drops.
+The architectural choices in this project are documented in formal Architecture Decision Records:
+
+- **[ADR 0001: Derived Balance via Double-Entry vs. Stored Column](docs/adr/0001-derived-balance-double-entry.md)**: Why balance is computed as `SUM(credits) - SUM(debits)` rather than a mutable integer column.
+- **[ADR 0002: Row-Level Locking vs. SERIALIZABLE Isolation](docs/adr/0002-row-level-locking-vs-serializable.md)**: Why deterministic `SELECT ... FOR UPDATE` was chosen over optimistic serialization retries.
+- **[ADR 0003: BullMQ (Redis-Backed) vs. Apache Kafka](docs/adr/0003-bullmq-vs-kafka.md)**: Operational simplicity, dead-letter routing, and resource trade-offs at this scale.
+- **[ADR 0004: JWT + Refresh Token Rotation vs. Server-Side Sessions](docs/adr/0004-jwt-refresh-rotation-vs-server-sessions.md)**: Stateless horizontal scaling with automated reuse detection and token revoking.
+
+---
+
+## What I'd Do Differently at Scale (>100,000 TPS)
+
+1. **Periodic Balance Snapshotting (Checkpoints)**:
+   - *Current*: Balances are dynamically calculated from all historical `ledger_entries` (backed by Redis cache).
+   - *At Scale*: A nightly or hourly checkpoint worker calculates and seals account snapshots. Balance queries become `last_snapshot_balance + SUM(entries since snapshot)`, bounding read latency to $O(1)$ regardless of account age.
+2. **Kafka Event Streaming for Audit & Analytics**:
+   - *Current*: BullMQ handles asynchronous audit log insertion into PostgreSQL.
+   - *At Scale*: Replace BullMQ with Apache Kafka to support multi-consumer fanout (compliance, fraud detection, analytics data lakes) with multi-partition horizontal scaling and long-term event retention.
+3. **Read Replicas & CQRS**:
+   - *Current*: Single primary PostgreSQL instance handles both writes and statement queries.
+   - *At Scale*: Route heavy read-only traffic (balance snapshots, statement history, ledger audit lookups) to PostgreSQL Read Replicas, reserving the primary strictly for transactional row-locked transfers.
+4. **Distributed Tracing & Metrics**:
+   - *Current*: Centralized structured JSON logging and console metrics.
+   - *At Scale*: Integrate OpenTelemetry with Prometheus and Jaeger/Datadog to trace transfer latencies across gateway, Redis lock acquisition, and database transactions.
+
