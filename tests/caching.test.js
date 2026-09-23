@@ -10,6 +10,7 @@ jest.mock('../src/config/redis');
 jest.mock('../src/repositories/account.repository');
 jest.mock('../src/repositories/transaction.repository');
 jest.mock('../src/repositories/auditLog.repository');
+jest.mock('../src/queues/audit.queue');
 jest.mock('../src/config/db');
 
 describe('Account Balance Cache-Aside Tests', () => {

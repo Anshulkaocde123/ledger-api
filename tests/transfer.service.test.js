@@ -2,12 +2,15 @@ const paymentService = require('../src/services/payment.service');
 const accountRepository = require('../src/repositories/account.repository');
 const transactionRepository = require('../src/repositories/transaction.repository');
 const auditLogRepository = require('../src/repositories/auditLog.repository');
+const { enqueueAuditLog } = require('../src/queues/audit.queue');
 const db = require('../src/config/db');
 const ApiError = require('../src/utils/apiError');
 
 jest.mock('../src/repositories/account.repository');
 jest.mock('../src/repositories/transaction.repository');
 jest.mock('../src/repositories/auditLog.repository');
+jest.mock('../src/services/account.service');
+jest.mock('../src/queues/audit.queue');
 jest.mock('../src/config/db');
 
 describe('PaymentService Transfer Tests', () => {
@@ -162,7 +165,7 @@ describe('PaymentService Transfer Tests', () => {
     expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
   });
 
-  it('should trigger asynchronous audit logging upon successful transfer', async () => {
+  it('should enqueue asynchronous audit logging job upon successful transfer', async () => {
     transactionRepository.findByIdempotencyKey.mockResolvedValue(null);
     accountRepository.lockAccountsInOrder.mockResolvedValue({
       'acc-1': { id: 'acc-1' },
@@ -174,7 +177,6 @@ describe('PaymentService Transfer Tests', () => {
       idempotency_key: 'key-audit',
     });
     transactionRepository.createLedgerEntries.mockResolvedValue([]);
-    auditLogRepository.create.mockResolvedValue({});
 
     await paymentService.transferFunds({
       idempotencyKey: 'key-audit',
@@ -184,10 +186,7 @@ describe('PaymentService Transfer Tests', () => {
       initiatedBy: 'user-audit',
     });
 
-    // Wait for setImmediate to execute
-    await new Promise((resolve) => setImmediate(resolve));
-
-    expect(auditLogRepository.create).toHaveBeenCalledWith(
+    expect(enqueueAuditLog).toHaveBeenCalledWith(
       expect.objectContaining({
         actorId: 'user-audit',
         action: 'TRANSFER_EXECUTED',

@@ -3,6 +3,7 @@ const accountRepository = require('../repositories/account.repository');
 const transactionRepository = require('../repositories/transaction.repository');
 const auditLogRepository = require('../repositories/auditLog.repository');
 const accountService = require('./account.service');
+const { enqueueAuditLog } = require('../queues/audit.queue');
 const ApiError = require('../utils/apiError');
 const logger = require('../utils/logger');
 
@@ -141,28 +142,19 @@ class PaymentService {
       // 8. Explicitly invalidate Redis balance cache for both accounts (do not wait for TTL)
       await accountService.invalidateBalanceCache(sourceAccountId, destinationAccountId);
 
-      // 9. Enqueue asynchronous, non-blocking audit log write
-      setImmediate(async () => {
-        try {
-          await auditLogRepository.create({
-            actorId: initiatedBy,
-            action: 'TRANSFER_EXECUTED',
-            entityType: 'TRANSACTION',
-            entityId: tx.id,
-            metadata: {
-              sourceAccountId,
-              destinationAccountId,
-              amount: transferAmount,
-              currency,
-              idempotencyKey,
-            },
-          });
-        } catch (auditErr) {
-          logger.error('Failed to record asynchronous audit log:', {
-            error: auditErr.message,
-            transactionId: tx.id,
-          });
-        }
+      // 9. Enqueue asynchronous audit log job to BullMQ queue
+      enqueueAuditLog({
+        actorId: initiatedBy,
+        action: 'TRANSFER_EXECUTED',
+        entityType: 'TRANSACTION',
+        entityId: tx.id,
+        metadata: {
+          sourceAccountId,
+          destinationAccountId,
+          amount: transferAmount,
+          currency,
+          idempotencyKey,
+        },
       });
 
       return {
