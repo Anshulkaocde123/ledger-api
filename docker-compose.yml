@@ -75,6 +75,7 @@ services:
     environment:
       PORT: 3000
       NODE_ENV: production
+      START_WORKER: "false"
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ledger_db
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-production_jwt_access_secret_change_in_env}

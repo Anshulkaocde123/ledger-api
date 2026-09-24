@@ -59,6 +59,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD wget -qO- http://localhost:3000/api/v1/health || exit 1
 
-# Launch application via dumb-init for graceful shutdown signal handling
+# Launch application: run pending migrations, then boot the server
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
-CMD ["node", "src/server.js"]
+CMD ["sh", "-c", "node src/database/migrate.js && node src/server.js"]
