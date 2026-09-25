@@ -21,8 +21,6 @@ Key capabilities planned:
 
 ## Architecture
 
-> 📘 **Interview Deep-Dive**: For a step-by-step first-principles breakdown of the problem statement, concurrency models, and interview pitch script, see **[docs/SYSTEM_DESIGN_HLD.md](docs/SYSTEM_DESIGN_HLD.md)**.
-
 ### System Topology
 
 ```mermaid

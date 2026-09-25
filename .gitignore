@@ -7,3 +7,7 @@ dist/
 coverage/
 *.log
 .DS_Store
+
+# Local private notes & sketchy diagrams
+docs/SYSTEM_DESIGN_HLD.md
+docs/images/
