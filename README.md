@@ -23,6 +23,11 @@ Key capabilities planned:
 
 ### System Topology
 
+![Ledger Architecture](docs/images/sketchy_ledger_hld.jpg)
+
+<details>
+<summary>Click to view Mermaid Topology Specification</summary>
+
 ```mermaid
 flowchart LR
     Client["Client / Workbench / Postman"] --> LB["Load Balancer"]
@@ -43,6 +48,7 @@ flowchart LR
 
     PG_Primary -. Replication .-> PG_Replica[("Postgres Read Replica")]
 ```
+</details>
 
 ### Layered Architecture (Separation of Concerns)
 

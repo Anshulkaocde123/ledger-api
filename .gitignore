@@ -8,6 +8,5 @@ coverage/
 *.log
 .DS_Store
 
-# Local private notes & sketchy diagrams
+# Local private notes
 docs/SYSTEM_DESIGN_HLD.md
-docs/images/
